@@ -1,0 +1,130 @@
+# Smoke suite — on-demand only. Runs only tests tagged @smoke (~11 tests).
+#
+# SETUP REQUIRED (once):
+#   GitHub repo → Settings → Pages → Source: "GitHub Actions"
+#
+# Shares the concurrency group with test-full.yml so Pages deployments serialise.
+
+name: E2E Tests – Smoke Suite
+
+on:
+  workflow_dispatch:
+    inputs:
+      project:
+        description: 'Browser / device project(s) to run'
+        required: true
+        default: chromium
+        type: choice
+        options:
+          - chromium
+          - desktop        # chromium + firefox + webkit
+          - all            # desktop + all emulated devices
+          - mobile         # mobile-chrome + mobile-safari + tablet
+          - firefox
+          - webkit
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: allure-pages
+  cancel-in-progress: true
+
+jobs:
+  # ── 1. Run smoke tests ──────────────────────────────────────────────────────
+  test:
+    name: Smoke (${{ inputs.project }})
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.61.1-noble
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
+
+      - name: Resolve project flags
+        id: flags
+        shell: bash
+        run: |
+          case "${{ inputs.project }}" in
+            all)
+              echo "value=--project=chromium --project=firefox --project=webkit \
+                --project=mobile-chrome --project=mobile-safari --project=tablet" \
+                >> "$GITHUB_OUTPUT" ;;
+            desktop)
+              echo "value=--project=chromium --project=firefox --project=webkit" \
+                >> "$GITHUB_OUTPUT" ;;
+            mobile)
+              echo "value=--project=mobile-chrome --project=mobile-safari --project=tablet" \
+                >> "$GITHUB_OUTPUT" ;;
+            *)
+              echo "value=--project=${{ inputs.project }}" >> "$GITHUB_OUTPUT" ;;
+          esac
+
+      - name: Run smoke tests
+        run: npx playwright test --grep @smoke ${{ steps.flags.outputs.value }}
+        env:
+          CI: '1'
+
+      - name: Upload allure-results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-results
+          path: allure-results/
+          retention-days: 3
+
+  # ── 2. Generate Allure report and publish to GitHub Pages ───────────────────
+  report:
+    name: Publish Allure Report
+    needs: test
+    if: always()
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download allure-results
+        uses: actions/download-artifact@v4
+        with:
+          name: allure-results
+          path: allure-results/
+
+      - name: Generate Allure report
+        run: npm run allure:generate
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: allure-report/
+
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v4
