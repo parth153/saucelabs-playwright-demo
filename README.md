@@ -68,6 +68,11 @@ workflow and the conventions generated tests should follow.
   interception / mocking / HAR techniques rather than REST assertions. Its static
   host also answers direct `.html` document hits with a `404` status while still
   serving the app shell — handled explicitly in the network specs.
+- **"No failed responses" test is skipped on Firefox.** Firefox eagerly fetches
+  PWA icon files referenced in the site manifest (`icon-192x192.png`), which
+  return `404` on saucedemo's static host. Chromium and WebKit only request these
+  icons lazily (during a PWA install flow), so the 404 never surfaces there. The
+  test is skipped on Firefox to avoid a false failure caused by a known site gap.
 - **a11y / performance / security** assertions reflect a third-party site with
   known gaps. Pre-existing issues are reported (and, for a11y, tracked in an
   allowlist); the suite gates on _regressions_, not the existing backlog.
