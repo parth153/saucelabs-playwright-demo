@@ -21,7 +21,7 @@ test.describe('visual regression', () => {
     await expect(page).toHaveScreenshot('login.png', { fullPage: true });
   });
 
-  test('inventory page', { tag: '@smoke' }, async ({ inventoryPage, page }) => {
+  test('inventory page', async ({ inventoryPage, page }) => {
     await annotate('Visual Regression', 'Inventory Page', Severity.NORMAL);
     await inventoryPage.goto();
     await expect(inventoryPage.title).toBeVisible();

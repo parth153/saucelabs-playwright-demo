@@ -92,6 +92,7 @@ jobs:
           npx playwright test ${{ steps.flags.outputs.value }} $SNAPSHOT_FLAG
         env:
           CI: '1'
+          HOME: /root
 
       - name: Upload allure-results
         if: always()
