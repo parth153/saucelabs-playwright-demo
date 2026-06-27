@@ -22,6 +22,9 @@ node_modules/
 # Env
 .env
 
+# Playwright MCP server — ephemeral session snapshots and logs
+/.playwright-mcp/
+
 # Claude Code — local settings (agents are intentionally committed)
 .claude/settings.json
 .claude/settings.local.json
